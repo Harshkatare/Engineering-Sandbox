@@ -1,0 +1,14 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: sandbox-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: sandbox_admin
+      MONGO_INITDB_ROOT_PASSWORD: sandbox_admin_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+
+volumes:
+  mongodata:
