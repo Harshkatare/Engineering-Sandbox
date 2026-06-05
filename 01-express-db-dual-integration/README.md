@@ -22,3 +22,7 @@ Unlike basic HTTP requests, database connections are heavy and expensive to open
 ### 2. Explicit Handshakes (The Health Check)
 To guarantee the application is stable, the `/health` endpoint doesn't just return a static `200 OK`. It forces an explicit query request (`SELECT NOW()`) to the underlying Postgres engine.
 * *Takeaway:* A backend isn't truly "healthy" just because the server is listening; it is only healthy if its data pipeline can successfully execute a query and return a timestamp.
+
+### 3. The Async Execution Pitfall
+* *Friction:* Forgetting the `await` keyword before `db.query()` causes Node to treat the variable as a pending Promise instance rather than the resolved database payload, causing standard structural queries like `.rows[0]` to immediately throw a runtime exception.
+* *Takeaway:* Database I/O is always non-blocking. Explicit asynchronous handling is mandatory to prevent empty state interpolation.
