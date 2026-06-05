@@ -8,7 +8,7 @@ app.use(express.json());
 
 app.get("/health", async (req, res) => {
   try {
-    const result = db.query("SELECT NOW()");
+    const result = await db.query("SELECT NOW()");
 
     res.status(200).json({
       status: "healthy",
