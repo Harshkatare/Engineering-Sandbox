@@ -33,3 +33,14 @@ Unlike the low-level `pg` driver used for Postgres, we utilized **Mongoose** as 
 | **Setup Complexity** | High (Pool config, types) | Low (URI string, connect) |
 | **Developer Velocity** | Strict / Slower | Rapid / Faster |
 | **Health Check Metric** | Query execution (`SELECT NOW()`) | State polling (`readyState`) |
+
+
+## 🔍 Log 03: Document Ingestion & Routing Friction
+
+### 1. Schema-less Storage Flexibility
+* *Observation:* Passing a deep JavaScript object containing nested objects and arbitrary arrays was absorbed natively by MongoDB. There was zero requirement to run parameter serialization or manual string conversions.
+* *Takeaway:* While Mongoose enforces application-level validation schemas (`User.js`), the underlying database layer dynamically instantiates collections on-the-fly upon the first write operation, prioritizing rapid data ingestion over structural rigidity.
+
+### 2. Express Path Resolution Friction
+* *Friction:* Omitting the leading forward slash in the routing registration string (e.g., `app.post('users', ...)` instead of `app.post('/users', ...)`) causes Express to drop the route from its internal routing table.
+* *Takeaway:* This triggers an implicit HTML `<pre>Cannot POST /users</pre>` 404 response rather than a database connectivity failure, indicating a path misconfiguration inside the API routing layer.
