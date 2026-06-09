@@ -10,8 +10,10 @@ Instead of building massive tutorial apps, I focus on small, isolated experiment
 
 ### 📁 [01-express-db-dual-integration](./01-express-db-dual-integration)
 * **The Goal:** Testing the development friction and implementation differences between Relational (PostgreSQL) and NoSQL (MongoDB) databases using an Express.js backend.
-* **The Stack:** `Node.js` • `Express.js` • `PostgreSQL` • `MongoDB`
-* **Status:** In Progress / Initializing boilerplate.
+* **The Stack:** `Node.js` • `Express.js` • `PostgreSQL` • `MongoDB` • `Docker Compose`
+* **Status:** 🟢 **Phase 1 & 2 Complete** * Isolated dual-engine network connectivity via containerization.
+  * Implemented concurrent user-ingestion routes to evaluate engine-level constraints vs. document-store flexibility.
+  * Documented architectural friction points (Connection pools vs. persistent streams, `JSONB` serialization overhead, and Express route path resolution).
 
 ---
 *More logs added as new tech is introduced into the sandbox.*
