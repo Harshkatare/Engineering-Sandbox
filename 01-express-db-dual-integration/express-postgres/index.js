@@ -1,7 +1,5 @@
 const express = require("express");
 const db = require("./db");
-const { json } = require("stream/consumers");
-const { error } = require("console");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,11 +47,86 @@ app.post('/users', async (req, res) => {
       engine: 'PostgreSQL',
       data: result.rows[0] //return newly created row
     });
-  } catch {
+  } catch (error) {
     console.error('[Postgres Insert Error]:', error.message);
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Record a new user login activity log
+app.post("/logs", async (req, res) => {
+  const { user_id, device_type, ip_address } = req.body;
+
+  try {
+    const queryText = `
+      INSERT INTO user_logs (user_id, device_type, ip_address)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const values = [user_id, device_type, ip_address];
+    const result = await db.query(queryText, values);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error("[Postgres Log Insert Error]:", error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Generate a relational user report via an INNER/LEFT JOIN
+app.get("/users/:id/report", async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const queryText = `
+      SELECT 
+        u.id AS user_id, u.name, u.email, u.preferences,
+        l.id AS log_id, l.device_type, l.ip_address, l.logged_at
+      FROM users u
+      LEFT JOIN user_logs l ON u.id = l.user_id
+      WHERE u.id = $1
+      ORDER BY l.logged_at DESC;
+    `;
+    const result = await db.query(queryText, [userId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Transform flat relational rows into a nested object format for the client
+    const userProfile = {
+      id: result.rows[0].user_id,
+      name: result.rows[0].name,
+      email: result.rows[0].email,
+      preferences: result.rows[0].preferences,
+      login_history: result.rows
+        .filter((row) => row.log_id !== null)
+        .map((row) => ({
+          log_id: row.log_id,
+          device_type: row.device_type,
+          ip_address: row.ip_address,
+          logged_at: row.logged_at,
+        })),
+    };
+
+    res.status(200).json({
+      success: true,
+      data: userProfile,
+    });
+  } catch (error) {
+    console.error("[Postgres Report Error]:", error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message,
     });
   }
 });
