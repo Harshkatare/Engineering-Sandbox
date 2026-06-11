@@ -53,6 +53,69 @@ app.post("/users", async (req, res) => {
   }
 });
 
+// record a new login event by pushing it directly into the embedded array
+app.post("/logs", async (req, res) => {
+  const { user_id, device_type, ip_address } = req.body;
+
+  try {
+    // in mongoDB, locate the user document and $push the new log into the array
+    const updatedUser = await User.findByIdAndUpdate(
+      user_id,
+      {
+        $push: {
+          login_history: {device_type, ip_address}
+        }
+      },
+      // returns the updated doc after mutation
+      { 
+        new: true, 
+        runValidators: true
+      }
+    );
+
+    if(!updatedUser){
+      return res.status(404).json({
+        success: false,
+        error: "User not found"
+      });
+    }
+
+    // return the newly appended log(last element in the array)
+    const newLog = updatedUser.login_history[updatedUser.login_history.length - 1];
+    res.status(201).json({
+      success: true,
+      data: newLog
+    });
+  } catch (error) {
+      console.error("[MongoDB Log Insert Error]:", error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+  }
+});
+
+// Generate the report (No JOINs required, the data is already nested)
+app.get("/users/:id/report", async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error("[MongoDB Report Error]:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Sandbox API server running on http://localhost:${PORT}`);
 });
