@@ -33,8 +33,13 @@ const initSchema = async () => {
       );
     `);
 
+    // 3. Industry GIN Index for deep JSONB lookups
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_preferences ON users USING gin (preferences);
+      `)
+
     console.log(
-      "postgreSQL: Both 'users' and 'user_logs' tables verified/created successfully.",
+      "postgreSQL: Both tables and GIN index verified/created successfully.",
     );
   } catch (err) {
     console.error("Failed to auto-initialize relational schema:", err);
