@@ -1,5 +1,6 @@
 const express = require("express");
 const db = require("./db");
+const { executionAsyncId } = require("async_hooks");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -128,6 +129,32 @@ app.get("/users/:id/report", async (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+});
+
+// performance test: Filter by nested JSONB using the GIN index
+app.get("/perf/postgres", async (req, res) => {
+  const {theme} = req.query; //example: /perf/postgres?theme=dark
+
+  try {
+    // EXPLAIN ANALYZE tells postgres to profile the execution strategy
+    const queryText = `
+      EXPLAIN ANALYZE
+      SELECT * FROM users
+      WHERE preferences @> $1;
+    `;
+    // The @> operator checks if the left JSONB column contains the right JSONB object
+    const jsonTarget = JSON.stringify({theme});
+    const restult = await db.query(queryText, [jsonTarget]);
+
+    // Result the execution plan text strings
+    result.status(200).json({
+      success: true,
+      execution_plan: result.row.map(r => r["QUERY PLAN"])
+    });
+  } catch (error) {
+    console.error("[postgres perf Error]:", error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

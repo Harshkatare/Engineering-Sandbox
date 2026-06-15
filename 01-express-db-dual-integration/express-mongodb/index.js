@@ -116,6 +116,28 @@ app.get("/users/:id/report", async (req, res) => {
   }
 });
 
+// performance test: Filter by embedded log device type using the index
+app.get("/perf/mongodb", async (req, res) => {
+  const { device } = req.query; //example: /perf/mongodb?device=Mobile (android/chrome)
+
+  try {
+    // .explain("executionStats") extracts the deep diagnostic engine stats
+    const stats = await User.find({ "login_history.device_type": device }).explain("executionStats");
+
+    res.status(200).json({
+      success: true,
+      summary: {
+        execution_stages: stats.executionStats.executionStages,
+        total_docs_examined: stats.executionStats.totalDocsExamined,
+        total_keys_examined: stats.executionStats.totalKeysExamined
+      }
+    });
+  } catch (error) {
+    console.error("[MongoDB perf Error]:", error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Sandbox API server running on http://localhost:${PORT}`);
 });
