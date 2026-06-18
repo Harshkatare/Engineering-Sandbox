@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("./db");
 const { executionAsyncId } = require("async_hooks");
+const { timeStamp } = require("console");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,10 +84,11 @@ app.post("/logs", async (req, res) => {
   }
 });
 
-// Generate a relational user report via an INNER/LEFT JOIN
-app.get("/users/:id/report", async (req, res) => {
+// Generate a relational user report via an INNER/LEFT JOIN 
+app.get("/users/:id/report", async (req, res, next) => {
   const userId = req.params.id;
 
+  //passing any potential db promise rejections straight to next()
   try {
     const queryText = `
       SELECT 
@@ -100,7 +102,10 @@ app.get("/users/:id/report", async (req, res) => {
     const result = await db.query(queryText, [userId]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      // return res.status(404).json({ success: false, error: "User not found" });
+      const error = new Error("User not found");
+      error.status = 404;
+      return next(error); //passes control to global error middleware
     }
 
     // Transform flat relational rows into a nested object format for the client
@@ -124,11 +129,7 @@ app.get("/users/:id/report", async (req, res) => {
       data: userProfile,
     });
   } catch (error) {
-    console.error("[Postgres Report Error]:", error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    });
+    next(error); //auto. routes the error down to global interceptor!
   }
 });
 
@@ -158,6 +159,18 @@ app.get("/perf/postgres", async (req, res) => {
   }
 });
 
+//global error handling middleware
+app.use((err, req, res, next) =>{
+  console.error(`🚨 [Global Error Interceptor]: ${err.message}`);
+
+  // standardize API Error payload structure
+  res.status(err.status || 500).json({
+    success: false,
+    engine: "PostgreSQL",
+    error: err.message || "Internal Server Error",
+    timeStamp: new Date().toISOString()
+  });
+});
 
 app.listen(PORT, () => {
     console.log(`sandbox API server is running on http://localhost:${PORT}`)

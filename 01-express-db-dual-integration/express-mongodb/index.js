@@ -44,7 +44,7 @@ app.post("/users", async (req, res) => {
       engine: "MongoDB / Mongoose",
       data: savedUser,
     });
-  } catch {
+  } catch (error) {
     console.error("[MongoDB Insert Error]:", error.message);
     res.status(500).json({
       success: false,
@@ -53,8 +53,8 @@ app.post("/users", async (req, res) => {
   }
 });
 
-// record a new login event by pushing it directly into the embedded array
-app.post("/logs", async (req, res) => {
+// record a new login event (using next for centralized errors)
+app.post("/logs", async (req, res, next) => {
   const { user_id, device_type, ip_address } = req.body;
 
   try {
@@ -74,10 +74,9 @@ app.post("/logs", async (req, res) => {
     );
 
     if(!updatedUser){
-      return res.status(404).json({
-        success: false,
-        error: "User not found"
-      });
+      const error = new Error("User not found");
+      error.status = 404;
+      return next(error);
     }
 
     // return the newly appended log(last element in the array)
@@ -87,23 +86,22 @@ app.post("/logs", async (req, res) => {
       data: newLog
     });
   } catch (error) {
-      console.error("[MongoDB Log Insert Error]:", error.message);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
+      //automatically forward validation for casting errors to the global interceptor
+      next(error);
   }
 });
 
-// Generate the report (No JOINs required, the data is already nested)
-app.get("/users/:id/report", async (req, res) => {
+// Generate the report (using next for centralized errors)
+app.get("/users/:id/report", async (req, res, next) => {
   const userId = req.params.id;
 
   try {
     const user = await User.findById(userId);
 
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
+      const error = new Error("User not found");
+      error.status = 404;
+      return next(error);
     }
 
     res.status(200).json({
@@ -111,8 +109,7 @@ app.get("/users/:id/report", async (req, res) => {
       data: user
     });
   } catch (error) {
-    console.error("[MongoDB Report Error]:", error.message);
-    res.status(500).json({ success: false, error: error.message });
+    next(error);
   }
 });
 
@@ -136,6 +133,18 @@ app.get("/perf/mongodb", async (req, res) => {
     console.error("[MongoDB perf Error]:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// global error handling middleware
+app.use((err, req, res, next) => {
+  console.error(`🚨 [Global Error Interceptor]: ${err.message}`);
+
+  res.status(err.status || 500).json({
+    success: false,
+    engine: "MongoDB",
+    error: err.message || "Internal Server Error",
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, () => {
